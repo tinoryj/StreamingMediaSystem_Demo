@@ -1,4 +1,4 @@
-# README 
+#README 
 系统级软件开发综合设计实验
 
 ## 申报表
@@ -107,3 +107,7 @@ RTCP消息含有已发送数据的丢包统计和网络拥塞等信息，服务�
 RTP/RTCP/RTSP支持
 
 
+
+## update in 2018.5.3
+
+change plan to HLS
