@@ -1,4 +1,4 @@
-TARGET_EXEC = main
+TARGET_EXEC = webEpollThreadPool
 BUILD_DIR = ./build
 SRC_DIRS = ./src
 LIB_DIR = ./lib
