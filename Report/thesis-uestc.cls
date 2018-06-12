@@ -369,7 +369,7 @@ bottom=3cm, bindingoffset=0cm]{geometry}
 \newcommand{\standardhead}{
 	\fancyhf{}
 	\fancyhead[CO]{\fontsize{10.5pt}{12.6pt}\selectfont\leftmark}
-	\fancyhead[CE]{\fontsize{10.5pt}{12.6pt}\selectfont 电子科技大学\chinesedegreename{}课程设计报告}
+	\fancyhead[CE]{\fontsize{10.5pt}{12.6pt}\selectfont 电子科技大学\chinesedegreename{}系统级软件开发综合课程设计报告}
 	\fancyfoot[CE,CO]{\fontsize{9pt}{10.8pt}\selectfont\thepage}
 }
 
