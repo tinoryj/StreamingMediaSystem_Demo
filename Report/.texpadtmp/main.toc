@@ -2,6 +2,8 @@
  \cftsetpnumwidth {\widthof {II}-1pt} 
  \cftsetpnumwidth {\widthof {III}-1pt} 
  \cftsetpnumwidth {\widthof {IV}-1pt} 
+ \cftsetpnumwidth {\widthof {V}-1pt} 
+ \cftsetpnumwidth {\widthof {VI}-1pt} 
  \cftsetpnumwidth {\widthof {1}-1pt} 
 \contentsline {chapter}{\numberline {第一章}绪\hspace {6pt}论}{1}{chapter.1}
 \contentsline {section}{\numberline {1.1}课程设计的内容}{1}{section.1.1}
@@ -9,75 +11,105 @@
 \contentsline {section}{\numberline {1.3}报告的结构安排}{1}{section.1.3}
  \cftsetpnumwidth {\widthof {2}-1pt} 
 \contentsline {chapter}{\numberline {第二章}系统需求分析}{2}{chapter.2}
+\contentsline {section}{\numberline {2.1}功能性需求}{2}{section.2.1}
+\contentsline {subsection}{\numberline {2.1.1}需求概述}{2}{subsection.2.1.1}
+\contentsline {subsubsection}{\numberline {2.1.1.1}角色定义}{2}{subsubsection.2.1.1.1}
+\contentsline {subsubsection}{\numberline {2.1.1.2}系统功能概述}{2}{subsubsection.2.1.1.2}
+\contentsline {subsection}{\numberline {2.1.2}功能需求}{2}{subsection.2.1.2}
+\contentsline {subsubsection}{\numberline {2.1.2.1}功能模型}{2}{subsubsection.2.1.2.1}
+\contentsline {subsubsection}{\numberline {2.1.2.2}数据模型/对象模型}{2}{subsubsection.2.1.2.2}
  \cftsetpnumwidth {\widthof {3}-1pt} 
-\contentsline {chapter}{\numberline {第三章}技术基础介绍}{3}{chapter.3}
-\contentsline {section}{\numberline {3.1}流媒体播放协议}{3}{section.3.1}
-\contentsline {subsection}{\numberline {3.1.1}RTSP / RTP / RTCP协议}{3}{subsection.3.1.1}
-\contentsline {subsubsection}{\numberline {3.1.1.1}RTP}{3}{subsubsection.3.1.1.1}
-\contentsline {subsubsection}{\numberline {3.1.1.2}RTCP}{3}{subsubsection.3.1.1.2}
+\contentsline {section}{\numberline {2.2}非功能性需求}{3}{section.2.2}
+\contentsline {section}{\numberline {2.3}本章小结}{3}{section.2.3}
  \cftsetpnumwidth {\widthof {4}-1pt} 
-\contentsline {subsubsection}{\numberline {3.1.1.3}RTSP}{4}{subsubsection.3.1.1.3}
-\contentsline {subsection}{\numberline {3.1.2}RTMP / RTMPS协议}{4}{subsection.3.1.2}
+\contentsline {chapter}{\numberline {第三章}技术基础介绍}{4}{chapter.3}
+\contentsline {section}{\numberline {3.1}流媒体播放协议}{4}{section.3.1}
+\contentsline {subsection}{\numberline {3.1.1}RTSP / RTP / RTCP协议}{4}{subsection.3.1.1}
+\contentsline {subsubsection}{\numberline {3.1.1.1}RTP}{4}{subsubsection.3.1.1.1}
+\contentsline {subsubsection}{\numberline {3.1.1.2}RTCP}{4}{subsubsection.3.1.1.2}
  \cftsetpnumwidth {\widthof {5}-1pt} 
-\contentsline {subsection}{\numberline {3.1.3}MMS (Microsoft Media Server)协议}{5}{subsection.3.1.3}
-\contentsline {subsection}{\numberline {3.1.4}HLS (HTTP live streaming)协议}{5}{subsection.3.1.4}
-\contentsline {subsection}{\numberline {3.1.5}综述}{5}{subsection.3.1.5}
+\contentsline {subsubsection}{\numberline {3.1.1.3}RTSP}{5}{subsubsection.3.1.1.3}
+\contentsline {subsection}{\numberline {3.1.2}RTMP / RTMPS协议}{5}{subsection.3.1.2}
  \cftsetpnumwidth {\widthof {6}-1pt} 
-\contentsline {section}{\numberline {3.2}TS视频编码}{6}{section.3.2}
-\contentsline {subsection}{\numberline {3.2.1}ts层}{6}{subsection.3.2.1}
+\contentsline {subsection}{\numberline {3.1.3}MMS (Microsoft Media Server)协议}{6}{subsection.3.1.3}
+\contentsline {subsection}{\numberline {3.1.4}HLS (HTTP live streaming)协议}{6}{subsection.3.1.4}
+\contentsline {subsection}{\numberline {3.1.5}综述}{6}{subsection.3.1.5}
  \cftsetpnumwidth {\widthof {7}-1pt} 
-\contentsline {subsection}{\numberline {3.2.2}pes层}{7}{subsection.3.2.2}
+\contentsline {section}{\numberline {3.2}TS视频编码}{7}{section.3.2}
+\contentsline {subsection}{\numberline {3.2.1}ts层}{7}{subsection.3.2.1}
  \cftsetpnumwidth {\widthof {8}-1pt} 
-\contentsline {subsection}{\numberline {3.2.3}es层}{8}{subsection.3.2.3}
-\contentsline {section}{\numberline {3.3}M3U8索引}{8}{section.3.3}
+\contentsline {subsubsection}{\numberline {3.2.1.1}TS Header}{8}{subsubsection.3.2.1.1}
+\contentsline {subsubsection}{\numberline {3.2.1.2}Adaption}{8}{subsubsection.3.2.1.2}
  \cftsetpnumwidth {\widthof {9}-1pt} 
-\contentsline {subsection}{\numberline {3.3.1}M3U文件标签及属性}{9}{subsection.3.3.1}
+\contentsline {subsubsection}{\numberline {3.2.1.3}PAT格式}{9}{subsubsection.3.2.1.3}
  \cftsetpnumwidth {\widthof {10}-1pt} 
-\contentsline {section}{\numberline {3.4}HTTP协议相关内容}{10}{section.3.4}
-\contentsline {subsection}{\numberline {3.4.1}HTTP协议}{10}{subsection.3.4.1}
-\contentsline {subsection}{\numberline {3.4.2}HTTP报文的格式定义}{10}{subsection.3.4.2}
-\contentsline {subsubsection}{\numberline {3.4.2.1}请求报文}{10}{subsubsection.3.4.2.1}
+\contentsline {subsubsection}{\numberline {3.2.1.4}PMT格式}{10}{subsubsection.3.2.1.4}
  \cftsetpnumwidth {\widthof {11}-1pt} 
+\contentsline {subsection}{\numberline {3.2.2}PES层}{11}{subsection.3.2.2}
  \cftsetpnumwidth {\widthof {12}-1pt} 
-\contentsline {subsubsection}{\numberline {3.4.2.2}响应报文}{12}{subsubsection.3.4.2.2}
+\contentsline {subsection}{\numberline {3.2.3}ES层}{12}{subsection.3.2.3}
+\contentsline {subsubsection}{\numberline {3.2.3.1}H.264视频}{12}{subsubsection.3.2.3.1}
  \cftsetpnumwidth {\widthof {13}-1pt} 
-\contentsline {section}{\numberline {3.5}高性能服务器相关技术}{13}{section.3.5}
-\contentsline {subsection}{\numberline {3.5.1}Epoll}{13}{subsection.3.5.1}
+\contentsline {subsubsection}{\numberline {3.2.3.2}AAC音频}{13}{subsubsection.3.2.3.2}
+\contentsline {section}{\numberline {3.3}M3U8索引}{13}{section.3.3}
  \cftsetpnumwidth {\widthof {14}-1pt} 
-\contentsline {subsubsection}{\numberline {3.5.1.1}Epoll的优点}{14}{subsubsection.3.5.1.1}
-\contentsline {subsubsection}{\numberline {3.5.1.2}Epoll的实现原理}{14}{subsubsection.3.5.1.2}
+\contentsline {subsection}{\numberline {3.3.1}M3U文件标签及属性}{14}{subsection.3.3.1}
  \cftsetpnumwidth {\widthof {15}-1pt} 
+\contentsline {section}{\numberline {3.4}HTTP协议相关内容}{15}{section.3.4}
+\contentsline {subsection}{\numberline {3.4.1}HTTP协议}{15}{subsection.3.4.1}
+\contentsline {subsection}{\numberline {3.4.2}HTTP报文的格式定义}{15}{subsection.3.4.2}
+\contentsline {subsubsection}{\numberline {3.4.2.1}请求报文}{15}{subsubsection.3.4.2.1}
  \cftsetpnumwidth {\widthof {16}-1pt} 
-\contentsline {subsubsection}{\numberline {3.5.1.3}Epoll的基本使用}{16}{subsubsection.3.5.1.3}
  \cftsetpnumwidth {\widthof {17}-1pt} 
-\contentsline {subsection}{\numberline {3.5.2}线程池与Cache}{17}{subsection.3.5.2}
-\contentsline {subsubsection}{\numberline {3.5.2.1}使用线程池的目的}{17}{subsubsection.3.5.2.1}
+\contentsline {subsubsection}{\numberline {3.4.2.2}响应报文}{17}{subsubsection.3.4.2.2}
  \cftsetpnumwidth {\widthof {18}-1pt} 
-\contentsline {subsubsection}{\numberline {3.5.2.2}线程池的实现原理}{18}{subsubsection.3.5.2.2}
+\contentsline {section}{\numberline {3.5}性能优化相关技术}{18}{section.3.5}
+\contentsline {subsection}{\numberline {3.5.1}Epoll}{18}{subsection.3.5.1}
  \cftsetpnumwidth {\widthof {19}-1pt} 
-\contentsline {section}{\numberline {3.6}FFmpeg}{19}{section.3.6}
-\contentsline {section}{\numberline {3.7}本章小结}{19}{section.3.7}
+\contentsline {subsubsection}{\numberline {3.5.1.1}Epoll的优点}{19}{subsubsection.3.5.1.1}
+\contentsline {subsubsection}{\numberline {3.5.1.2}Epoll的实现原理}{19}{subsubsection.3.5.1.2}
  \cftsetpnumwidth {\widthof {20}-1pt} 
-\contentsline {chapter}{\numberline {第四章}系统概要设计}{20}{chapter.4}
  \cftsetpnumwidth {\widthof {21}-1pt} 
-\contentsline {chapter}{\numberline {第五章}系统设计与实现}{21}{chapter.5}
-\contentsline {section}{\numberline {5.1}m3u8-segmenter的设计与实现}{21}{section.5.1}
-\contentsline {section}{\numberline {5.2}HTTP服务器的基本设计}{21}{section.5.2}
+\contentsline {subsubsection}{\numberline {3.5.1.3}Epoll的基本使用}{21}{subsubsection.3.5.1.3}
  \cftsetpnumwidth {\widthof {22}-1pt} 
-\contentsline {section}{\numberline {5.3}服务器的高性能优化}{22}{section.5.3}
-\contentsline {subsection}{\numberline {5.3.1}Epoll的设计与实现}{22}{subsection.5.3.1}
+\contentsline {subsection}{\numberline {3.5.2}线程池与Cache}{22}{subsection.3.5.2}
+\contentsline {subsubsection}{\numberline {3.5.2.1}使用线程池的目的}{22}{subsubsection.3.5.2.1}
  \cftsetpnumwidth {\widthof {23}-1pt} 
-\contentsline {subsection}{\numberline {5.3.2}线程池的设计与实现}{23}{subsection.5.3.2}
+\contentsline {subsubsection}{\numberline {3.5.2.2}线程池的实现原理}{23}{subsubsection.3.5.2.2}
  \cftsetpnumwidth {\widthof {24}-1pt} 
+\contentsline {section}{\numberline {3.6}FFmpeg}{24}{section.3.6}
+\contentsline {section}{\numberline {3.7}本章小结}{24}{section.3.7}
  \cftsetpnumwidth {\widthof {25}-1pt} 
-\contentsline {subsection}{\numberline {5.3.3}Cache的设计与实现}{25}{subsection.5.3.3}
-\contentsline {section}{\numberline {5.4}本章小结}{25}{section.5.4}
+\contentsline {chapter}{\numberline {第四章}系统概要设计}{25}{chapter.4}
+\contentsline {section}{\numberline {4.1}视频预处理}{25}{section.4.1}
+\contentsline {subsection}{\numberline {4.1.1}视频转码}{25}{subsection.4.1.1}
+\contentsline {subsection}{\numberline {4.1.2}视频切片}{25}{subsection.4.1.2}
  \cftsetpnumwidth {\widthof {26}-1pt} 
-\contentsline {chapter}{\numberline {第六章}系统测试}{26}{chapter.6}
-\setcounter {tocdepth}{0}
+\contentsline {section}{\numberline {4.2}Web服务器}{26}{section.4.2}
  \cftsetpnumwidth {\widthof {27}-1pt} 
-\contentsline {chapter}{致\hspace {12pt}谢}{27}{chapter*.9}
+\contentsline {section}{\numberline {4.3}前端播放}{27}{section.4.3}
+\contentsline {section}{\numberline {4.4}本章小结}{27}{section.4.4}
  \cftsetpnumwidth {\widthof {28}-1pt} 
-\contentsline {chapter}{参考文献}{28}{chapter*.10}
+\contentsline {chapter}{\numberline {第五章}系统设计与实现}{28}{chapter.5}
+\contentsline {section}{\numberline {5.1}m3u8-segmenter的设计与实现}{28}{section.5.1}
  \cftsetpnumwidth {\widthof {29}-1pt} 
-\contentsline {chapter}{附录}{29}{chapter*.11}
+\contentsline {section}{\numberline {5.2}HTTP服务器的基本设计}{29}{section.5.2}
+ \cftsetpnumwidth {\widthof {30}-1pt} 
+ \cftsetpnumwidth {\widthof {31}-1pt} 
+\contentsline {section}{\numberline {5.3}服务器的高性能优化}{31}{section.5.3}
+\contentsline {subsection}{\numberline {5.3.1}Epoll的设计与实现}{31}{subsection.5.3.1}
+ \cftsetpnumwidth {\widthof {32}-1pt} 
+\contentsline {subsection}{\numberline {5.3.2}线程池的设计与实现}{32}{subsection.5.3.2}
+ \cftsetpnumwidth {\widthof {33}-1pt} 
+\contentsline {subsection}{\numberline {5.3.3}Cache的设计与实现}{33}{subsection.5.3.3}
+ \cftsetpnumwidth {\widthof {34}-1pt} 
+\contentsline {section}{\numberline {5.4}本章小结}{34}{section.5.4}
+ \cftsetpnumwidth {\widthof {35}-1pt} 
+\contentsline {chapter}{\numberline {第六章}系统测试}{35}{chapter.6}
+\contentsline {section}{\numberline {6.1}视频播放测试}{35}{section.6.1}
+ \cftsetpnumwidth {\widthof {36}-1pt} 
+\contentsline {section}{\numberline {6.2}web服务性能测试}{36}{section.6.2}
+ \cftsetpnumwidth {\widthof {37}-1pt} 
+\contentsline {section}{\numberline {6.3}本章小结}{37}{section.6.3}
+ \cftsetpnumwidth {\widthof {38}-1pt} 
+\contentsline {chapter}{参考文献}{38}{chapter*.24}

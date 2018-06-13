@@ -4,9 +4,9 @@ The top-level auxiliary file: /Users/tinoryj/Documents/ProgsData/StreamingMediaS
 The style file: ../thesis-uestc.bst
 Database file #1: ../reference.bib
 Warning--entry type for "muduo" isn't style-file defined
---line 11 of file ../reference.bib
+--line 9 of file ../reference.bib
 Warning--entry type for "HTTP" isn't style-file defined
---line 18 of file ../reference.bib
+--line 16 of file ../reference.bib
 You've used 6 entries,
             715 wiz_defined-function locations,
             269 strings with 2134 characters,

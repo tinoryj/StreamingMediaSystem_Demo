@@ -1,5 +1,6 @@
 
 \documentclass[bachelor]{thesis-uestc}
+\usepackage{booktabs}
 
 \title{流媒体系统的设计与实现}
 \author{}
@@ -8,8 +9,15 @@
 
 \begin{chineseabstract}
 
+流媒体播放系统中，需要适当的传输与播放协议来实现音视频流的传输与控制，在本次课程设计中，为了尽可能优化性能和提高并发能力，选用了HLS协议作为流媒体系统核心协议。系统中服务器需要同时为多个客户提供服务，所以必须使用某种方式来支持这种多任务的服务方式。一般情况下可以有以下三种方式来选择，多进程方式、多线程方式及异步方式。在本次课程设计中，为了尽力提高服务器并发性能，采用了Epoll$+$线程池的方式进行设计。
 
-\chinesekeyword{}
+本文介绍了m3u8索引和ts视频切片的原理与实现以及基于Epoll与线程池的服务器实现原理与方法，阐述了本次课程设计的工作内容，并给出了部分函数的定义与解释。本次课程设计实现了Linux系统下Epoll、线程池、文件缓存、HTTP响应、HLS索引生成、流视频切片的相关功能。
+
+课程设计全部源码均已上传至GitHub:tinoryj/Server。
+
+
+\chinesekeyword{C++，流媒体，视频编解码，Epoll，线程池}
+
 \end{chineseabstract}
 
 \thesistableofcontents
@@ -47,6 +55,56 @@
 
 \chapter{系统需求分析}
 
+\section{功能性需求}
+\subsection{需求概述}
+\subsubsection{角色定义}
+在流媒体系统中，共有两种角色：
+
+\begin{itemize}
+	\item 用户：请求视频资源并观看。
+	\item 系统管理员：视频预处理与服务器管理。
+\end{itemize}
+
+\subsubsection{系统功能概述}
+
+对于用户，可以请求服务器中已经存在的视频资源并获取到该视频的编码表和数据。
+对于系统管理员，可以对视频资源进行格式转化、预处理分片、查看服务器日志和管理资源。
+
+\subsection{功能需求}
+
+\subsubsection{功能模型}
+
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{yl.png}
+\caption{功能模型用例图}
+\label{yl} 
+\end{figure}
+
+如上图（\ref{yl}）所示为功能模型用例图，对于客户端（用户）需要提供资源请求、视频播放、播放控制、错误提示功能；对于服务器需要提供视频转码、针对传输协议的视频存储和重编码、稳定的Web响应已经系统日志功能。
+
+
+\subsubsection{数据模型/对象模型}
+
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{sl.png}
+\caption{数据/对象模型用例图}
+\label{sl} 
+\end{figure}
+
+如上图（\ref{sl}）所示为数据/对象模型用例图。
+
+
+\section{非功能性需求}
+
+\begin{itemize}
+	\item 对于用户请求的、确实存在的资源快速响应，保证用户视频观看体验。
+	\item 服务器并发性能好，可以应对大量用户的并发访问。
+	\item 对各种平台支持性能好，特别是移动平台，为用户提供优质体验。
+	\item 视频预处理简单化，易于操作。
+\end{itemize}
+
+\section{本章小结}
+本章主要阐述了流媒体系统的相关需求，给出了功能性和非功能性需求的具体内容，并通过用例图予以说明。
 
 \chapter{技术基础介绍}
 
@@ -143,81 +201,251 @@ ts文件为传输流文件，视频编码主要格式h264/mpeg4，音频为acc/M
 
 \subsection{ts层}
 ts包大小固定为188字节，ts层分为三个部分：ts header、adaptation field、 payload。ts header固定4个字节；adaptation field可能存在也可能不存在，主要作用是给不足188字节的数据做填充；payload是pes数据。
+
+\subsubsection{TS Header}
+
+\begin{table}[!h]
+\centering
+\caption{ts header各参数含义表}
+\label{ts header各参数含义表}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
+
+sync\_byte	& 8b &	同步字节，固定为0x47\\
+transport\_error\_indicator	& 1b &	传输错误指示符\\
+payload\_unit\_start\_indicator	& 1b & 	负载单元起始标示符\\
+transport\_priority	& 1b &	传输优先级，0为低优先级，1为高优先级\\
+pid	& 13b &	pid值\\
+transport\_scrambling\_control	& 2b &	传输加扰控制，00表示未加密\\
+adaptation\_field\_control	& 2b &	是否包含自适应区，‘00’保留；‘01’为无自适应域，仅含有效负载；‘10’为仅含自适应域，无有效负载；‘11’为同时带有自适应域和有效负载。\\
+continuity\_counter	& 4b & 	递增计数器，从0-f，起始值不一定取0，但必须是连续的\\
+\bottomrule 
+\end{tabular}
+\end{table}
+
+如上表（\ref{ts header各参数含义表}）所示，为ts header的相关参数，ts层的内容是通过PID值来标识的，主要内容包括：
+\begin{itemize}
+	\item PAT表：指明了PMT表的PID值。
+	\item PMT表：指明了音视频流的PID值。
+	\item 音频流/视频流：承载音视频内容。
+\end{itemize}
+
+
+解析ts流要先找到PAT表，只要找到PAT就可以找到PMT，然后就可以找到音视频流了。PAT表的PID值固定为0。PAT表和PMT表需要定期插入ts流，因为用户随时可能加入ts流，这个间隔比较小，通常每隔几个视频帧就要加入PAT和PMT。PAT和PMT表是必须的，还可以加入其它表如SDT（业务描述表）等，但hls流只要有PAT和PMT就可以播放了。
+
+\subsubsection{Adaption}
+
+\begin{table}[!h]
+\centering
+\caption{Adaption域各参数含义表}
+\label{Adaption域各参数含义表}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
+
+adaptation\_field\_length	& 1B	& 自适应域长度，后面的字节数\\
+flag	& 1B& 	取0x50表示包含PCR或0x40表示不包含PCR\\
+PCR	& 5B & 	Program Clock Reference，节目时钟参考，用于恢复出与编码端一致的系统时序时钟STC（System Time Clock）\\
+stuffing\_bytes	& xB & 	填充字节，取值0xff\\
+\bottomrule 
+\end{tabular}
+\end{table}
+
+
+\par Adaption域中的各项参数如表（\ref{Adaption域各参数含义表}）所示。
+
+\par 自适应区的长度要包含传输错误指示符标识的一个字节。pcr是节目时钟参考，pcr、dts、pts都是对同一个系统时钟的采样值，pcr是递增的，因此可以将其设置为dts值，音频数据不需要pcr。如果没有字段，ipad是可以播放的，但vlc无法播放。
+
+\par 打包ts流时PAT和PMT表是没有adaptation field的，不够的长度直接补0xff即可。视频流和音频流都需要加adaptation field，通常加在一个帧的第一个ts包和最后一个ts包里，中间的ts包不加。
      
      
-ts header
-sync\_byte	8b	同步字节，固定为0x47
-transport\_error\_indicator	1b	传输错误指示符，表明在ts头的adapt域后由一个无用字节，通常都为0，这个字节算在adapt域长度内
-payload\_unit\_start\_indicator	1b	负载单元起始标示符，一个完整的数据包开始时标记为1
-transport\_priority	1b	传输优先级，0为低优先级，1为高优先级，通常取0
-pid	13b	pid值
-transport\_scrambling\_control	2b	传输加扰控制，00表示未加密
-adaptation\_field\_control	2b	是否包含自适应区，‘00’保留；‘01’为无自适应域，仅含有效负载；‘10’为仅含自适应域，无有效负载；‘11’为同时带有自适应域和有效负载。
-continuity\_counter	4b	递增计数器，从0-f，起始值不一定取0，但必须是连续的
-     ts层的内容是通过PID值来标识的，主要内容包括：PAT表、PMT表、音频流、视频流。解析ts流要先找到PAT表，只要找到PAT就可以找到PMT，然后就可以找到音视频流了。PAT表的PID值固定为0。PAT表和PMT表需要定期插入ts流，因为用户随时可能加入ts流，这个间隔比较小，通常每隔几个视频帧就要加入PAT和PMT。PAT和PMT表是必须的，还可以加入其它表如SDT（业务描述表）等，不过hls流只要有PAT和PMT就可以播放了。
-PAT表：他主要的作用就是指明了PMT表的PID值。
-PMT表：他主要的作用就是指明了音视频流的PID值。
-音频流/视频流：承载音视频内容。
 
-\subsection{pes层}
+\subsubsection{PAT格式}
 
-     pes层是在每一个视频/音频帧上加入了时间戳等信息，pes包内容很多，我们只留下最常用的。
+如表（\ref{PAT表中各参数含义表}、\ref{PAT表中各参数含义表（续表）}）所示为PAT表的格式信息，在进行ts文件创建时按照该格式进行编码。
+\begin{table}[!h]
+\centering
+\caption{PAT表中各参数含义表}
+\label{PAT表中各参数含义表}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
 
-pes start code	3B	开始码，固定为0x000001
-stream id	1B	音频取值（0xc0-0xdf），通常为0xc0
-视频取值（0xe0-0xef），通常为0xe0
-pes packet length	2B	后面pes数据的长度，0表示长度不限制，
-只有视频数据长度会超过0xffff
-flag	1B	通常取值0x80，表示数据不加密、无优先级、备份的数据
-flag	1B	取值0x80表示只含有pts，取值0xc0表示含有pts和dts
-pes data length	1B	后面数据的长度，取值5或10
-pts	5B	33bit值
-dts	5B	33bit值
-     pts是显示时间戳、dts是解码时间戳，视频数据两种时间戳都需要，音频数据的pts和dts相同，所以只需要pts。有pts和dts两种时间戳是B帧引起的，I帧和P帧的pts等于dts。如果一个视频没有B帧，则pts永远和dts相同。从文件中顺序读取视频帧，取出的帧顺序和dts顺序相同。dts算法比较简单，初始值 + 增量即可，pts计算比较复杂，需要在dts的基础上加偏移量。
-     音频的pes中只有pts（同dts），视频的I、P帧两种时间戳都要有，视频B帧只要pts（同dts）。打包pts和dts就需要知道视频帧类型，但是通过容器格式我们是无法判断帧类型的，必须解析h.264内容才可以获取帧类型。
-举例说明：
-                         I          P          B          B          B          P
-读取顺序：         1         2          3          4          5          6
-dts顺序：           1         2          3          4          5          6
-pts顺序：           1         5          3          2          4          6
-点播视频dts算法：
-dts = 初始值 + 90000 / video\_frame\_rate，初始值可以随便指定，但是最好不要取0，video\_frame\_rate就是帧率，比如23、30。
-pts和dts是以timescale为单位的，1s = 90000 time scale , 一帧就应该是90000/video\_frame\_rate 个timescale。
-用一帧的timescale除以采样频率就可以转换为一帧的播放时长
-点播音频dts算法：
-dts = 初始值 + (90000 * audio\_samples\_per\_frame) / audio\_sample\_rate，audio\_samples\_per\_frame这个值与编解码相关，aac取值1024，mp3取值1158，audio\_sample\_rate是采样率，比如24000、41000。AAC一帧解码出来是每声道1024个sample，也就是说一帧的时长为1024/sample\_rate秒。所以每一帧时间戳依次0，1024/sample\_rate，...，1024*n/sample\_rate秒。
-直播视频的dts和pts应该直接用直播数据流中的时间，不应该按公式计算。
+table\_id	 & 8b &	PAT表固定为0x00\\
+section\_syntax\_indicator	&1b&	固定为1\\
+zero	&1b&	固定为0\\
+reserved	&2b&	固定为11\\
+section\_length	&12b&	后面数据的长度\\
+transport\_stream\_id	&16b&	传输流ID，固定为0x0001\\
+reserved	&2b&	固定为11\\
+version\_number	&5b&	版本号，固定为00000，如果PAT有变化则版本号加1\\
+current\_next\_indicator	&1b&	固定为1，表示这个PAT表可以用，如果为0则要等待下一个PAT表\\
+section\_number	&8b&	固定为0x00\\
+last\_section\_number	&8b&	固定为0x00\\
+\bottomrule 
+\end{tabular}
+\end{table}
 
+\begin{table}[!h]
+\centering
+\caption{PAT表中各参数含义表（续表）}
+\label{PAT表中各参数含义表（续表）}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
+开始循环	 	\\ 
+program\_number	&16b&	节目号为0x0000时表示这是NIT，节目号为0x0001时,表示这是PMT\\
+reserved	&3b&	固定为111\\
+PID	&13b&	节目号对应内容的PID值\\
+结束循环\\	 	 
+CRC32	&32b&	前面数据的CRC32校验码\\
 
-\subsection{es层}
-
-     es层指的就是音视频数据，我们只介绍h.264视频和aac音频。
-h.264视频：
-     打包h.264数据我们必须给视频数据加上一个nalu（Network Abstraction Layer unit），nalu包括nalu header和nalu type，nalu header固定为0x00000001（帧开始）或0x000001（帧中）。h.264的数据是由slice组成的，slice的内容包括：视频、sps、pps等。nalu type决定了后面的h.264数据内容。
-
-F	1b	forbidden\_zero\_bit，h.264规定必须取0
-NRI	2b	nal\_ref\_idc，取值0~3，指示这个nalu的重要性，I帧、sps、pps通常取3，P帧通常取2，B帧通常取0
-Type	5b	参考下表
-nal\_unit\_type	说明
-0	未使用
-1	非IDR图像片，IDR指关键帧
-2	片分区A
-3	片分区B
-4	片分区C
-5	IDR图像片，即关键帧
-6	补充增强信息单元(SEI)
-7	SPS序列参数集
-8	PPS图像参数集
-9	分解符
-10	序列结束
-11	码流结束
-12	填充
-13~23	保留
-24~31	未使用
-     红色字体显示的内容是最常用的，打包es层数据时pes头和es数据之间要加入一个type=9的nalu，关键帧slice前必须要加入type=7和type=8的nalu，而且是紧邻。
+\bottomrule 
+\end{tabular}
+\end{table}
 
 
+\subsubsection{PMT格式}
+如表（\ref{PMT表中各参数含义表}、\ref{PMT表中各参数含义表（续表）}）所示为PAT表的格式信息，在进行ts文件创建时按照该格式进行编码。
+\begin{table}[!h]
+\centering
+\caption{PMT表中各参数含义表}
+\label{PMT表中各参数含义表}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
 
+table\_id	&8b&	PMT表取值随意，0x02\\
+section\_syntax\_indicator	&1b&	固定为1\\
+zero	&1b&	固定为0\\
+reserved	&2b&	固定为11\\
+section\_length	&12b&	后面数据的长度\\
+program\_number	&16b&	频道号码，表示当前的PMT关联到的频道，取值0x0001\\
+reserved	&2b&	固定为11\\
+version\_number	&5b&	版本号，固定为00000，如果PAT有变化则版本号加1\\
+current\_next\_indicator	&1b&	固定为1\\
+section\_number	&8b&	固定为0x00\\
+last\_section\_number	&8b&	固定为0x00\\
+reserved	&3b&	固定为111\\
+PCR\_PID	&13b&	PCR(节目参考时钟)所在TS分组的PID，指定为视频PID\\
+
+reserved	&4b&	固定为1111\\
+program\_info\_length	&12b&	节目描述信息，指定为0x000表示没有\\
+
+
+\bottomrule 
+\end{tabular}
+\end{table}
+
+\begin{table}[!h]
+\centering
+\caption{PMT表中各参数含义表（续表）}
+\label{PMT表中各参数含义表（续表）}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
+开始循环	 	 \\
+stream\_type	&8b&	流类型，标志是Video还是Audio还是其他数据，h.264编码对应0x1b，aac编码对应0x0f，mp3编码对应0x03\\
+reserved	&3b&	固定为111\\
+elementary\_PID	&13b&	与stream\_type对应的PID\\
+reserved	&4b&	固定为1111\\
+ES\_info\_length	&12b&	描述信息，指定为0x000表示没有\\
+结束循环	 \\	 
+CRC32	&32b&	前面数据的CRC32校验码\\
+
+
+\bottomrule 
+\end{tabular}
+\end{table}
+
+
+
+\subsection{PES层}
+\par pes层是在每一个视频/音频帧上加入了时间戳等信息，pes包内容很多，以下只阐述最常用的几个参数（如表\ref{pes层主要参数含义表}所示）。
+
+\begin{table}[!h]
+\centering
+\caption{pes层主要参数含义表}
+\label{pes层主要参数含义表}
+\begin{tabular}{lp{3cm}p{6cm}p{2cm}}
+\toprule
+名称	&  大小 & 意义 \\
+\midrule
+pes start code	& 3B &	开始码，固定为0x000001\\
+stream id &	1B &	音频取值（0xc0-0xdf），通常为0xc0; 视频取值（0xe0-0xef），通常为0xe0\\
+pes packet length	& 2B &	后面pes数据的长度，0表示长度不限制，
+只有视频数据长度会超过0xffff\\
+flag	& 1B &	通常取值0x80，表示数据不加密、无优先级、备份的数据\\
+flag	& 1B &	取值0x80表示只含有pts; 取值0xc0表示含有pts和dts\\
+pes data length	 &1B &	后面数据的长度，取值5或10\\
+pts &	5B &	33bit值\\
+dts	& 5B &	33bit值\\
+
+\bottomrule 
+\end{tabular}
+\end{table}
+
+\par pts是显示时间戳、dts是解码时间戳，视频数据两种时间戳都需要，音频数据的pts和dts相同，所以只需要pts。有pts和dts两种时间戳是B帧引起的，I帧和P帧的pts等于dts。如果一个视频没有B帧，则pts永远和dts相同。从文件中顺序读取视频帧，取出的帧顺序和dts顺序相同。dts算法比较简单，初始值+增量即可，pts计算比较复杂，需要在dts的基础上加偏移量。
+\par 音频的pes中只有pts（同dts），视频的I、P帧两种时间戳均需要，视频B帧只要pts（同dts）。打包pts和dts就需要知道视频帧类型，但是通过容器格式我们是无法判断帧类型的，因此必须解析h.264内容才可以获取帧类型。
+     
+
+
+\subsection{ES层}
+es层指的就是音视频数据，本章只介绍H.264视频和AAC音频。
+\subsubsection{H.264视频}
+打包h.264数据时，必须给视频数据加上一个nalu（Network Abstraction Layer unit），nalu包括nalu header和nalu type。nalu header固定为0x00000001（帧开始）或0x000001（帧中）；nalu type决定了后面的H.264数据内容。H.264的数据是由slice组成的，slice的内容包括：视频、sps、pps等。nal\_unit\_type的说明如下表（\ref{nal的说明}）所示。
+
+\begin{table}[!h]
+\centering
+\caption{nal\_unit\_type的说明}
+\label{nal的说明}
+\begin{tabular}{llll}
+\toprule
+编码 &含义 &编码 &含义 \\
+\midrule
+0	&未使用 &1	&非IDR图像片，IDR指关键帧\\
+2	&片分区A &3	&片分区B\\
+4	&片分区C &5	&IDR图像片，即关键帧\\
+6	&补充增强信息单元(SEI) &7	&SPS序列参数集\\
+8	&PPS图像参数集 &9	&分解符\\
+10	&序列结束 &11	&码流结束\\
+12	&填充 &13$\sim$23	&保留\\
+24$\sim$31	&未使用\\
+\bottomrule 
+\end{tabular}
+\end{table}
+
+打包es层数据时pes头和es数据之间要加入一个$type=9$的nalu，关键帧slice前必须要加入$type=7$和$type=8$的nalu，而且是紧邻（如下图（\ref{nalu}）所示）。
+
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{nalu.png}	
+\caption{ES层数据打包格式}
+\label{nalu} 
+\end{figure}
+
+\subsubsection{AAC音频}
+
+AAC，全称Advanced Audio Coding，是一种专为声音数据设计的文件压缩格式。
+
+\textbf{AAC音频编码的特性}
+
+\begin{enumerate}
+	\item 滤波器组（Filter bank）：主要完成信号的时频转换。从而得到频域的频谱系数。
+	\item 时域噪音修整（Temporal Noise Shaping，TNS）：这项神奇的技术可以通过在频率域上的预测，来修整时域上的量化噪音的分布。
+	\item 预测（Prediction）：对音频信号进行预测可以减少重复冗余信号的处理，提高效率。
+	\item 量化（Quantization）：AAC的量化过程是使用两个巢状循环进行反复运算。通过对量化分析的良好控制，比特率能够被更高效地利用。
+	\item 比特流格式（Bit－stream format）：在AAC中，信息的传输都要经过熵编码，以保证冗余尽可能少。此外AAC拥有一个弹性的比特流结构，使得编码效率进一步提高。
+	\item 长时期预测（Long Term Prediction，LTP）：这是一个MPEG-4 AAC中才有的工具，它用来减少连续两个编码音框之间的信号冗余，对于处理低码率的语音非常有效。
+	\item 知觉噪音代替（Perceptual Noise Substitution，PNS）：这也是MPEG－4 AAC中才有的工具，当编码器发现类似噪音的信号时，并不对其进行量化，而是作个标记就忽略过去，当解码时再还原出来，这样就提高了效率。
+
+\end{enumerate}
 
 
 
@@ -375,7 +603,7 @@ HTTP 响应报文由状态行、响应头部、空行和响应包体4个部分�
 
 服务器返回给客户端的文本信息。
 
-\section{高性能服务器相关技术}
+\section{性能优化相关技术}
 
 
 \subsection{Epoll}
@@ -554,20 +782,164 @@ FFmpeg是一套可以用来记录、转换数字音频、视频，并能将其�
 
 \section{本章小结}
 
-本章论述了流媒体传输协议的选择；HLS协议的相关内容；HTTP协议以及HTTP请求处理的基本内容；为了实现服务器高并发能力采用的Epoll、线程池、Cache等相关技术的基本概念；以及FFmpeg开源框架在视频编解码方面的相关内容。为系统的实现做好了知识和技术预备。
+本章论述了流媒体传输协议的选择；HLS协议的相关内容；HTTP协议以及HTTP请求处理的基本内容；为了实现服务器高并发能力采用的Epoll、线程池、Cache等相关技术的基本概念；TS视频编码、m3u8索引的格式与建立；以及FFmpeg开源框架在视频编解码方面的相关内容。为系统的实现做好了知识和技术预备。
 
 
 
 
 \chapter{系统概要设计}
 
-\chapter{系统设计与实现}
+根据需求分析和相关技术的选择，将流媒体系统分为了视频的预处理、Web服务器、前端播放三个主要功能模块。整个系统的工作流程如图（\ref{gysj-1}）所示。首先将视频转码为流式视频文件（ts文件），然后通过切片器完成视频的预处理以生成视频分段及索引，再通过Web服务器将视频流发送至前端，最终用户通过前端H5播放器流式观看视频内容。
 
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{gysj-1.png}
+\caption{系统工作流程}
+\label{gysj-1} 
+\end{figure}
+
+
+\section{视频预处理}
+
+视频的预处理分为两个主要环节：
+
+\begin{enumerate}
+	\item 将原始视频文件转码到由H.264视频编码及AAC音频编码的ts文件。
+	\item 转码的到的ts文件的切块及m3u8索引的生成。
+\end{enumerate}
+
+\subsection{视频转码}
+
+由于视频格式众多，转码需要适配的选项过多，因此使用FFmpeg工具进行转码操作，以一般mkv视频为例，可通过如下方式进行转码。
+
+\begin{lstlisting}
+	ffmpeg -i example.mkv -acodec copy -vcodec libx264 example.ts
+\end{lstlisting}
+
+同时，对于不同的原始视频文件，可以通过调整ffmpeg参数的方式实现转码。
+
+\subsection{视频切片}
+
+对于已经转码完成的ts视频文件，只需要按照ts文件的标准格式进行读取并重新编码即可创建出所需的ts视频分片，然后根据m3u8文件的标准格式生成对应的m3u8索引文件。
+
+在该模块中主要通过两个方法实现：
+
+\begin{itemize}
+	\item static AVStream *add\_output\_stream
+	\item int write\_index\_file
+\end{itemize}
+
+视频文件通过ffmpeg API读入之后，通过add\_output\_stream方法获取到每个视频分片的数据内容，并将数据打包写出至相应的视频分片ts文件中。 然后通过write\_index\_file方法将add\_output\_stream方法得到的每个视频分片的信息写入m3u8索引文件中。
+
+\section{Web服务器}
+
+
+
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{gysj-2.png}
+\caption{Web服务器工作流程}
+\label{gysj-2} 
+\end{figure}
+
+如上图（\ref{gysj-2}）所示为Web服务器部分的工作流程图。当视频请求到达时，Epoll监听到请求并创建对应的epoll fd与之绑定，同时调用线程池中的空闲线程查询所请求的资源是否已存在于Cache中。若Cache中已存在该资源，则通过epoll fd直接从Cache中读取对应资源并发送；若Cache中不存在该资源，则响应线程发起I/O操作，从磁盘中读取该资源并检查Cache是否已满。当Cache已满时将剔除最早加入Cache的资源，并将刚读取到的资源加入Cache，当Cache未满时则直接将该资源加入Cache。最后，epoll fd发送Cache中的资源并关闭连接释放所占用的线程资源。
+
+\section{前端播放}
+
+对于移动端，可以通过直接请求m3u8索引文件通过H5播放基于HLS协议的流媒体文件。对于PC端，由于仅Safair浏览器支持H5的Video标签播放HLS流媒体视频文件，因此对于其他浏览器需要使用第三方的JavaScript播放框架播放视频内容。使用Video-Contrib-Hls播放框架（如下所示）实现在非移动端非Safari浏览器下的播放。
+
+
+\begin{lstlisting}
+<video id=example-video width=600 height=300 class="video-js vjs-default-skin" controls>
+<source
+     src="https://example.com/index.m3u8"
+     type="application/x-mpegURL">
+</video>
+<script src="video.js"></script>
+<script src="videojs-contrib-hls.min.js"></script>
+<script>
+var player = videojs('example-video');
+player.play();
+</script>
+\end{lstlisting}
+
+
+\section{本章小结}
+本章主要介绍了流媒体系统的整体框架，视频预处理、web服务器和前端播放相关的概要设计，阐述了本次课程设计开发的框架与要实现的目标功能与模块。
+
+
+
+\chapter{系统设计与实现}
 
 \section{m3u8-segmenter的设计与实现}
 
+在本课程设计中，定义了如下的结构体用于m3u8-segmenter的控制和调度。
 
+\begin{lstlisting}
+struct options_t {
+    const char *input_file; //原始TS文件
+    long segment_duration; //每个片段的时常
+    const char *output_prefix; //输出片段文件的文件名前缀
+    const char *m3u8_file; //输出的m3u8索引文件
+    char *tmp_m3u8_file; 
+    const char *url_prefix; //url前缀
+    long num_segments; //总切片数目
+};
+\end{lstlisting}
 
+\par 在切片程序中，通过对ffmpeg的调用，将输入的ts流视频文件分解为视频流和音频流分别处理，按照给定的分片时长分别进行切片，最终整合为分片ts文件并生成对应的m3u8索引文件。
+
+\par 如下所示为音视频流整合输出的部分代码，通过帧率和分片时间控制，循环输出每个分片。
+
+\begin{lstlisting}
+	for (i = 0; i < ic->nb_streams && (video_index < 0 || audio_index < 0); i++) {
+        switch (ic->streams[i]->codec->codec_type) {
+            case AVMEDIA_TYPE_VIDEO:
+                video_index = i;
+                ic->streams[i]->discard = AVDISCARD_NONE;
+                video_st = add_output_stream(oc, ic->streams[i]);
+                break;
+            case AVMEDIA_TYPE_AUDIO:
+                audio_index = i;
+                ic->streams[i]->discard = AVDISCARD_NONE;
+                audio_st = add_output_stream(oc, ic->streams[i]);
+                break;
+            default:
+                ic->streams[i]->discard = AVDISCARD_ALL;
+                break;
+        }
+    }
+\end{lstlisting}
+
+如下所示为通过调用ffmpeg库实现的音视频解码和重编码的方法static AVStream *add\_output\_stream(AVFormatContext *output\_format\_context, AVStream *input\_stream)中的关键代码。
+\begin{lstlisting}
+	    switch (input_codec_context->codec_type) {
+        case AVMEDIA_TYPE_AUDIO:
+            output_codec_context->channel_layout = input_codec_context->channel_layout;
+            output_codec_context->sample_rate = input_codec_context->sample_rate;
+            output_codec_context->channels = input_codec_context->channels;
+            output_codec_context->frame_size = input_codec_context->frame_size;
+            if ((input_codec_context->block_align == 1 && input_codec_context->codec_id == CODEC_ID_MP3) || input_codec_context->codec_id == CODEC_ID_AC3) {
+                output_codec_context->block_align = 0;
+            }
+            else {
+                output_codec_context->block_align = input_codec_context->block_align;
+            }
+            break;
+        case AVMEDIA_TYPE_VIDEO:
+            output_codec_context->pix_fmt = input_codec_context->pix_fmt;
+            output_codec_context->width = input_codec_context->width;
+            output_codec_context->height = input_codec_context->height;
+            output_codec_context->has_b_frames = input_codec_context->has_b_frames;
+
+            if (output_format_context->oformat->flags & AVFMT_GLOBALHEADER) {
+                output_codec_context->flags |= CODEC_FLAG_GLOBAL_HEADER;
+            }
+            break;
+    default:
+        break;
+    }
+\end{lstlisting}
+
+由于视频分片，转码所需的时间远长于客户容忍的等待时间，因此m3u8-segmenter模块单独编译为Segmenter可执行程序，在视频放置到Web服务器中前完成切片工作，提高系统运行效率。
 
 \section{HTTP服务器的基本设计}
 在本课程设计中，定义如下5个宏，分别表示HTTP服务处于：操作成功、读、写、关闭连接以及错误状态，以便于对HTTP服务的状态进行传递与处理。
@@ -749,32 +1121,94 @@ public:
 \end{lstlisting}
 
 
-
-
-
-
-
-
-
-
-
-
 \section{本章小结}
-本章首先阐述了HTTP协议的相关内容，然后分析了HTTP报文的格式，最后给出了HTTP请求处理的实现。
+
+\par 本章详细阐述了m3u8-segmenter的设计与实现；HTTP服务器端的具体设计与实现；以及针对高并发需求的Epoll、线程池、Cache等模块的相关设计。
 
 \chapter{系统测试}
 
+\section{视频播放测试}
 
+使用来自电影天堂的“阳光电影www.ygdy8.com.幕后玩家.HD.720p.国语中字”作为测试用视频，原始视频文件格式为mkv。
 
-\thesisacknowledgement
+首先通过ffmpeg转码，再使用切片器对影片完成切片（如下图（\ref{test-0}）所示）。
 
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{test-0.png}
+\caption{视频切片结果}
+\label{test-0} 
+\end{figure}
+生成的m3u8索引开始部分如下所示：
 
+\begin{lstlisting}
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-ALLOW-CACHE:YES
+#EXT-X-TARGETDURATION:14
+#EXTINF:6.333333,
+output000.ts
+#EXTINF:10.250000,
+output001.ts
+#EXTINF:6.416667,
+output002.ts
+#EXTINF:10.416667,
+output003.ts
+#EXTINF:4.583333,
+output004.ts
+#EXTINF:2.708333,
+output005.ts
+#EXTINF:1.750000,
+output006.ts
+#EXTINF:4.500000,
+output007.ts
+#EXTINF:1.166667,
+\end{lstlisting}
 
+在Safari浏览器中访问0.0.0.0:8080/playlist.m3u8，可以正常观看视频，同时可以完成音量大小调节、视频播放暂停切换、进度条拖动（如下图（\ref{test-1}）所示）。
+
+\begin{figure}[h]
+\includegraphics[width=\linewidth]{test-1.png}
+\caption{视频播放测试}
+\label{test-1} 
+\end{figure}
+
+\section{web服务性能测试}
+
+本次课程设计使用webbench进行服务器性能测试。
+
+webbench最多可以模拟3万个并发连接去测试服务器的负载能力，编译和配置简单，仅基于TCP协议上对服务器进行测试。Webbench也是开放源码，从代码上看，每个客户端都fork出一个进程进行测试，仅在TCP协议层对服务器测试，并未涉及HTTP协议。
+
+测试环境为：
+
+\begin{itemize}
+	\item 虚拟机：VMware fusion 10.1.0
+	\item CPU：Core i5 5257U （虚拟机使用一个内核两个线程）
+	\item RAM：4GB
+	\item 系统：Ubuntu 18.04 LTS
+	\item 测试软件：webbench 1.5
+\end{itemize}
+
+测试结果如下报告所示，基本达到了预设性能目标（由于虚拟机进程fork限制，更高客户数量无法测试，因此测试结果为200个客户端测试30秒的结果）。
+
+\begin{lstlisting}
+# tinoryj @ ubuntu in ~/Desktop/webbench-1.5 [5:37:53]
+$ ./webbench -c 200 http://127.0.0.1:8080/  
+Webbench - Simple Web Benchmark 1.5  
+Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.  
+  
+Benchmarking: GET http://127.0.0.1:8080/ 
+200 clients, running 30 sec.  
+  
+Speed=246578 pages/min, 27904904 bytes/sec.  
+Requests: 123079 susceed, 210 failed.  
+\end{lstlisting}
+
+\section{本章小结}
+
+本章主要介绍了流媒体系统的使用测试以及性能测试，在使用测试部分通过两小时的影片进行了播放测试，在性能测试中使用webbench测试了服务器的并发性能与稳定能，基本达到系统设计目标。
 
 \thesisloadbibliography[nocite]{reference}
-
-\thesisappendix
-
 
 
 \end{document}
