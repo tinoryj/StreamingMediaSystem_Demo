@@ -3,7 +3,7 @@
 Cache baseCache;
 Cache& HttpServe::cache_ = baseCache;
 int HttpServe::epollfd_ = -1;
-const char HttpServe::rootDir_[] = "/home/tinoryj/Documents/Code/Server/webSrc";
+const char HttpServe::rootDir_[] = "./";
 const char HttpServe::homePage_[] = "index.html";
 
 void HttpServe::init(int sockfd){
@@ -309,10 +309,16 @@ void HttpServe::getFileType(char *filename, char *filetype){
 		strcpy(filetype, "image/png");
 	else if (strstr(filename, ".css"))
 		strcpy(filetype, "text/css");
+	else if (strstr(filename, ".ts"))
+		strcpy(filetype, "video/mp2t");
+	else if (strstr(filename, ".m3u8"))
+		strcpy(filetype, "application/x-mpegurl");
 	else if (strstr(filename, ".ttf") || strstr(filename, ".otf"))
 		strcpy(filetype, "application/octet-stream");
 	else
 		strcpy(filetype, "text/plain");
+
+		
 }
 
 void HttpServe::serveStatic(char *fileName, size_t fileSize){

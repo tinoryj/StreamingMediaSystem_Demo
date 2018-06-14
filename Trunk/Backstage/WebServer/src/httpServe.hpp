@@ -59,8 +59,8 @@ private:
 	int parseUri(char *uri, char *fileName, char *cgiargs); //处理GET路径
 	bool read();
 	//常量
-	static const int READ_BUFFER_SIZE = 1024; // 读缓冲区的大小
-	static const int WRITE_BUFFER_SIZE = 1024; // 写缓冲区的大小
+	static const int READ_BUFFER_SIZE = 1024000; // 读缓冲区的大小
+	static const int WRITE_BUFFER_SIZE = 1024000; // 写缓冲区的大小
 	static const char rootDir_[]; // 网页的根目录
 	static const char homePage_[]; // 所指代的网页
 	static Cache& cache_; // 全局cache_
